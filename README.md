@@ -2,4 +2,4 @@
 
 ## Algorytmy
 
-1. [Algorytm 1](algorytmy/1/README.md)
+1. [Algorytm 1](algorytmy/1)
