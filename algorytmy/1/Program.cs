@@ -6,7 +6,9 @@
   }
 
   var temp = subset(str[1..]);
-  return new[] { str[..1] }.Concat(temp).Concat(temp.Select(x => str[0] + x));
+  return new[] { str[..1] }.Concat(temp)
+                           .Concat(temp.Select(x => str[0] + x))
+                           .Distinct();
 }
 
 
