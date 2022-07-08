@@ -1,4 +1,4 @@
-﻿var rotatedNumbers = new Dictionary<char, char> { { '0', '0' }, { '1', '1' }, { '6', '9' }, { '8', '8' }, { '9', '6' } };
+﻿var rotatedNumbers = new Dictionary<char, char> { { '0', '0' }, { '1', '1' }, { '2', '5' }, { '5', '2' }, { '6', '9' }, { '8', '8' }, { '9', '6' } };
 
 bool isPrime(long n)
 {
@@ -34,7 +34,8 @@ if (args.Length <= 0)
 
 var input = args[0];
 
-if(!input.All(x => Char.IsNumber(x))) {
+if (!input.All(x => Char.IsNumber(x)))
+{
   Console.WriteLine("Input must be a positive number");
   return;
 }
@@ -54,6 +55,5 @@ if (isStrobogrammatic(input))
     resultMessage += " and is too big to check whether is prime";
   }
 }
-
 
 Console.WriteLine("The given number is" + resultMessage);
