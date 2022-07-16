@@ -11,6 +11,7 @@
     "nazwisko": "Kowalski",
     "zawód": "Marynarz",
     "wiek": "37",
-    "miejsce-urodzenia" : "Sopot"
+    "miejsce-urodzenia" : "Sopot",
+    "nieregularne-pole": "Tylko u Janka!"
   }
 ]

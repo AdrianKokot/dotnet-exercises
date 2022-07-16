@@ -15,18 +15,17 @@ try
     throw new FileNotFoundException("File doesn't exist.");
   }
 
-  var formatter = new Formatter(parseJson(File.ReadAllText(filePath)));
-
-  Console.WriteLine(formatter.Format());
+  var parsedJson = parseJson(File.ReadAllText(filePath));
+  Console.WriteLine(formatJson(parsedJson));
 }
 catch (Exception e)
 {
   Console.WriteLine(e.Message);
 }
 
-IDictionary<string, string[]> parseJson(string json)
+IEnumerable<IDictionary<string, string>> parseJson(string jsonContent)
 {
-  var inputString = json.Trim().TrimStart('[').TrimEnd(']');
+  var inputString = jsonContent.Trim().TrimStart('[').TrimEnd(']');
 
   if (Regex.IsMatch(inputString, "\\[|\\]|(\"\\s*:\\s*{)", RegexOptions.Multiline))
   {
@@ -35,82 +34,45 @@ IDictionary<string, string[]> parseJson(string json)
 
   inputString = Regex.Replace(inputString, "{|}[^,]|\"", "", RegexOptions.Multiline);
 
-  var objects = Regex.Split(inputString, "},")
-                     .Select(jsonObj =>
-                       Regex.Split(jsonObj, ",")
-                            .Select(objectField =>
-                            {
-                              var pair = objectField.Split(":");
-                              return (Key: pair[0].Trim(), Value: pair[1].Trim());
-                            })
-                     );
-
-  var dict = objects.SelectMany(x => x.Select(y => y.Key))
-                    .Distinct()
-                    .ToDictionary(x => x, (_) => new List<string>());
-
-  for (var i = 0; i < objects.Count(); i++)
-  {
-    foreach (var field in objects.ElementAt(i))
-    {
-      var dictLen = dict[field.Key].Count();
-
-      if (dictLen < i)
-      {
-        dict[field.Key].AddRange(Enumerable.Range(0, i - dictLen).Select(x => "-"));
-      }
-
-      dict[field.Key].Add(field.Value);
-    }
-  }
-
-  return dict.ToDictionary(x => x.Key, x => x.Value.ToArray());
+  return Regex.Split(inputString, "},")
+              .Select(jsonObj =>
+                 Regex.Split(jsonObj, ",")
+                      .Select(objectField => objectField.Split(":"))
+                      .ToDictionary(x => x[0].Trim(), x => x[1].Trim())
+              );
 }
 
-public class Formatter
+string formatJson(IEnumerable<IDictionary<string, string>> objects)
 {
-  private readonly int fieldMargin = 2;
-  private readonly IEnumerable<IEnumerable<string>> preparedJson;
-  private readonly int[] columnLengths;
-  private readonly string divider;
+  const int fieldMargin = 2;
+  var columns = objects.SelectMany(x => x.Keys)
+                       .Distinct()
+                       .ToArray();
 
-  private string centerString(string text, int length)
-    => text.PadLeft((length - text.Length) / 2 + text.Length).PadRight(length);
+  var columnLengths = columns.Select(column =>
+    Math.Max(column.Length, objects.Max(obj => obj.GetValue(column, "").Length))
+  ).Select(x => x + fieldMargin).ToArray();
 
-  private string wrapRowWithDividers(IEnumerable<string> arr)
-    => $"|{String.Join("|", arr)}|\n{divider}";
+  var divider = new String('-', columns.Length + 1 + columnLengths.Sum());
 
-  private string formatRow(IEnumerable<string> arr)
-    => wrapRowWithDividers(arr.Select((str, i) => centerString(str, columnLengths[i])));
+  return objects.Select(obj => columns.Select(column => obj.GetValue(column, "-")))
+          .Prepend(columns.Select(x => x.ToUpper()))
+          .Select(rowData => rowData.Select((str, i) => str.PadCenter(columnLengths[i]))
+                                    .ToJoinedString("|")
+          )
+          .Select(x => $"|{x}|\n{divider}")
+          .ToJoinedString("\n")
+          .Insert(0, $"{divider}\n");
+}
 
-  private IEnumerable<IEnumerable<string>> prepareJsonForFormatting(in IDictionary<string, string[]> json)
-  {
-    var lists = new List<List<string>>();
+public static class Extensions
+{
+  public static string PadCenter(this String str, int length)
+    => str.PadLeft((length - str.Length) / 2 + str.Length).PadRight(length);
 
-    var colCount = json.Keys.Count();
-    var rowCount = json.Values.Max(x => x.Count());
+  public static string ToJoinedString(this IEnumerable<String> enumerable, string joiner)
+    => String.Join(joiner, enumerable);
 
-    for (var i = 0; i < rowCount; i++)
-    {
-      lists.Add(new List<string>());
-      for (var j = 0; j < colCount; j++)
-      {
-        lists[i].Add(json.Values.ElementAt(j).ElementAt(i));
-      }
-    }
-
-    return lists.Prepend(json.Keys.Select(str => str.ToUpper()));
-  }
-  public Formatter(in IDictionary<string, string[]> json)
-  {
-    this.preparedJson = prepareJsonForFormatting(json);
-
-    this.columnLengths =
-        json.Select(x => Math.Max(x.Key.Length, x.Value.Max(entry => entry.Length)) + fieldMargin).ToArray();
-
-    var dividerLength = this.columnLengths.Count() + 1 + this.columnLengths.Sum();
-    this.divider = new String('-', dividerLength);
-  }
-
-  public string Format() => divider + "\n" + String.Join("\n", preparedJson.Select(x => formatRow(x)));
+  public static TValue GetValue<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue whenNull)
+  => dict.ContainsKey(key) ? dict[key] : whenNull;
 }
