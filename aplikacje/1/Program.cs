@@ -1,4 +1,5 @@
-﻿using System.Text.RegularExpressions;
+﻿using System.Security.Cryptography.X509Certificates;
+using System.Text.RegularExpressions;
 
 try
 {
@@ -42,25 +43,20 @@ IEnumerable<IDictionary<string, string>> parseJson(string jsonContent)
               );
 }
 
-string formatJson(IEnumerable<IDictionary<string, string>> objects)
+string formatJson(in IEnumerable<IDictionary<string, string>> objects)
 {
   const int fieldMargin = 2;
-  var columns = objects.SelectMany(x => x.Keys)
-                       .Distinct()
-                       .ToArray();
 
-  var columnLengths = columns.Select(column =>
-    Math.Max(column.Length, objects.Max(obj => obj.GetValue(column, "").Length))
-  ).Select(x => x + fieldMargin).ToArray();
+  var columns = objects.SelectMany(x => x)
+                      .GroupBy(x => x.Key, x => x.Value.Length)
+                      .ToDictionary(x => x.Key, x => Math.Max(x.Key.Length, x.Max()) + fieldMargin);
 
-  var divider = new String('-', columns.Length + 1 + columnLengths.Sum());
+  var divider = new String('-', columns.Values.Count() + 1 + columns.Values.Sum());
 
-  return objects.Select(obj => columns.Select(column => obj.GetValue(column, "-")))
-          .Prepend(columns.Select(x => x.ToUpper()))
-          .Select(rowData => rowData.Select((str, i) => str.PadCenter(columnLengths[i]))
-                                    .ToJoinedString("|")
-          )
-          .Select(x => $"|{x}|\n{divider}")
+  return objects.Select(obj => columns.Keys.Select(column => obj.GetValue(column, "-")))
+          .Prepend(columns.Keys.Select(column => column.ToUpper()))
+          .Select(row => row.Select((col, i) => col.PadCenter(columns.ElementAt(i).Value)))
+          .Select(x => $"|{x.ToJoinedString("|")}|\n{divider}")
           .ToJoinedString("\n")
           .Insert(0, $"{divider}\n");
 }
@@ -74,5 +70,5 @@ public static class Extensions
     => String.Join(joiner, enumerable);
 
   public static TValue GetValue<TKey, TValue>(this IDictionary<TKey, TValue> dict, TKey key, TValue whenNull)
-  => dict.ContainsKey(key) ? dict[key] : whenNull;
+    => dict.ContainsKey(key) ? dict[key] : whenNull;
 }
