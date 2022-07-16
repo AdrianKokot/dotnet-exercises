@@ -2,7 +2,7 @@
 
 try
 {
-  string? filePath = args.Length > 0 ? args[0] : "./example.json";
+  string? filePath = args.Length > 0 ? args[0] : null;
 
   if (filePath is null)
   {
@@ -21,7 +21,7 @@ try
 }
 catch (Exception e)
 {
-  Console.WriteLine(e.Message + " " + e.StackTrace);
+  Console.WriteLine(e.Message);
 }
 
 IDictionary<string, string[]> parseJson(string json)
