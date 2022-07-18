@@ -1,4 +1,7 @@
-﻿if (args.Length <= 0)
+﻿using System.Text.RegularExpressions;
+using System.Globalization;
+
+if (args.Length <= 0)
 {
   Console.WriteLine("Missing argument.");
   return;
@@ -6,7 +9,9 @@
 
 try
 {
-  Console.WriteLine(Math.Abs(double.Parse(args[0])).ToString().Length);
+  var input = args[0];
+  var parsed = double.Parse(input, NumberStyles.Any, CultureInfo.InvariantCulture);
+  Console.WriteLine(parsed.ToString().Where(char.IsDigit).Count());
 }
 catch (Exception)
 {
