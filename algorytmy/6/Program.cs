@@ -1,6 +1,22 @@
-﻿
-using System.Reflection.Emit;
-using System.Text.RegularExpressions;
+﻿using System.Text.RegularExpressions;
+
+try
+{
+  string filePath = readArg("Input route request (from, to, max_transfers): ", "Missing argument.", 0);
+  var routeRequest = parseRouteRequest(readArg("Input file path: ", "File doesn't exist.", 1));
+
+  if (routeRequest.maxTransfers < 0)
+  {
+    throw new Exception("Wrong arguments.");
+  }
+
+  var result = findShortestPath(parseFileContent(filePath), routeRequest);
+  Console.WriteLine(result);
+}
+catch (Exception e)
+{
+  Console.WriteLine(e.Message);
+}
 
 string readArg(string message, string errorMessage, int argsIndex)
 {
@@ -20,36 +36,25 @@ string readArg(string message, string errorMessage, int argsIndex)
   return input;
 }
 
-
-try
+IEnumerable<Connection> parseFileContent(string filePath)
 {
-  string filePath = readArg("Input route request (from, to, max_transfers): ", "Missing argument.", 0),
-         routeRequest = readArg("Input file path: ", "File doesn't exist.", 1);
-
   var fileContent = File.ReadAllText(filePath);
+
   fileContent = Regex.Replace(fileContent, @"[\[\]'\(\n\r]", "", RegexOptions.Multiline);
 
-  var connections = Regex.Split(fileContent, @"\)\w*,")
-    .Where(x => x.Length > 0)
-    .Select(x => Regex.Split(x, ",").Select(x => x.Trim()).ToArray())
-    .Select(arr => new Connection(start: arr[0], end: arr[1], price: double.Parse(arr[2])));
-
-  var tempArr = Regex.Split(Regex.Replace(routeRequest, @"[\(\)]", ""), @",\w*").Select(x => x.Trim()).ToArray();
-  var requestInput = new RoteRequest(from: tempArr[0], to: tempArr[1], maxTransfers: int.Parse(tempArr[2]));
-
-  if (requestInput.maxTransfers < 0)
-  {
-    throw new Exception("Wrong arguments.");
-  }
-
-  Console.WriteLine(findShortestPath(connections, requestInput));
+  return Regex.Split(fileContent, @"\)\w*,")
+              .Where(x => x.Length > 0)
+              .Select(x => Regex.Split(x, ",").Select(x => x.Trim()).ToArray())
+              .Select(arr => new Connection(start: arr[0], end: arr[1], price: double.Parse(arr[2])));
 }
-catch (Exception e)
+
+RouteRequest parseRouteRequest(string input)
 {
-  Console.WriteLine(e.Message);
+  var tempArr = Regex.Split(Regex.Replace(input, @"[\(\)]", ""), @",\w*").Select(x => x.Trim()).ToArray();
+  return new RouteRequest(from: tempArr[0], to: tempArr[1], maxTransfers: int.Parse(tempArr[2]));
 }
 
-string findShortestPath(IEnumerable<Connection> connections, RoteRequest requestInput)
+string findShortestPath(in IEnumerable<Connection> connections, RouteRequest requestInput)
 {
   var dictId = 0;
   var stations = connections.SelectMany(x => new string[] { x.start, x.end })
@@ -62,23 +67,23 @@ string findShortestPath(IEnumerable<Connection> connections, RoteRequest request
     throw new Exception("The given station doesn't exist.");
   }
 
-  var groupedConnections = connections.GroupBy(x => x.start)
+  var stationNeighbours = connections.GroupBy(x => x.start)
                                       .ToDictionary(x => x.Key, x => x.Select(y => (name: y.end, price: y.price)));
 
-  var matrix = stations.Select(x => (name: x.Key, wasChecked: false, minCost: double.PositiveInfinity, prevStationId: -1, pathCount: 0))
+  var matrix = stations.Select(x => (name: x.Key, visited: false, routeCost: double.PositiveInfinity, prevVertexId: -1, transfers: 0))
                        .ToArray();
 
-  matrix[0].minCost = 0;
+  matrix[0].routeCost = 0;
 
   for (var i = 0; i < matrix.Length; i++)
   {
-    var minCost = matrix.Min(x => x.wasChecked ? double.PositiveInfinity : x.minCost);
-    var vertexId = Array.FindIndex(matrix, x => !x.wasChecked && x.minCost == minCost);
+    var minRouteCost = matrix.Min(x => x.visited ? double.PositiveInfinity : x.routeCost);
+    var vertexId = Array.FindIndex(matrix, x => !x.visited && x.routeCost == minRouteCost);
 
-    matrix[vertexId].wasChecked = true;
-    var neighbours =  groupedConnections.GetValueOrDefault(matrix[vertexId].name);
+    matrix[vertexId].visited = true;
+    var neighbours = stationNeighbours.GetValueOrDefault(matrix[vertexId].name);
 
-    if (matrix[vertexId].pathCount >= requestInput.maxTransfers || neighbours is null)
+    if (matrix[vertexId].transfers >= requestInput.maxTransfers || neighbours is null)
     {
       continue;
     }
@@ -86,20 +91,20 @@ string findShortestPath(IEnumerable<Connection> connections, RoteRequest request
     foreach (var neighbour in neighbours)
     {
       var neighbourId = stations[neighbour.name];
-      var neighbourCost = matrix[vertexId].minCost + neighbour.price;
+      var neighbourCost = matrix[vertexId].routeCost + neighbour.price;
 
-      if (neighbourCost < matrix[neighbourId].minCost)
+      if (neighbourCost < matrix[neighbourId].routeCost)
       {
-        matrix[neighbourId].minCost = neighbourCost;
-        matrix[neighbourId].prevStationId = vertexId;
-        matrix[neighbourId].pathCount = matrix[vertexId].pathCount + 1;
+        matrix[neighbourId].routeCost = neighbourCost;
+        matrix[neighbourId].prevVertexId = vertexId;
+        matrix[neighbourId].transfers = matrix[vertexId].transfers + 1;
       }
     }
   }
 
   var resultVertexId = stations[requestInput.to];
 
-  var resultPrice = matrix[resultVertexId].minCost;
+  var resultPrice = matrix[resultVertexId].routeCost;
   var resultPath = matrix[resultVertexId].name;
 
   if (resultPrice == double.PositiveInfinity)
@@ -107,7 +112,7 @@ string findShortestPath(IEnumerable<Connection> connections, RoteRequest request
     throw new Exception("Route doesn't exist.");
   }
 
-  while ((resultVertexId = matrix[resultVertexId].prevStationId) != -1)
+  while ((resultVertexId = matrix[resultVertexId].prevVertexId) != -1)
   {
     resultPath = matrix[resultVertexId].name + " -> " + resultPath;
   }
@@ -115,6 +120,6 @@ string findShortestPath(IEnumerable<Connection> connections, RoteRequest request
   return resultPath + "\nPrice: " + resultPrice;
 }
 
-record struct RoteRequest(string from, string to, int maxTransfers);
+record struct RouteRequest(string from, string to, int maxTransfers);
 
 record struct Connection(string start, string end, double price);
