@@ -7,6 +7,7 @@
 3. [Algorytm 3](algorytmy/3)
 4. [Algorytm 4](algorytmy/4)
 5. [Algorytm 5](algorytmy/5)
+6. [Algorytm 6](algorytmy/6)
 
 ## Aplikacje
 
