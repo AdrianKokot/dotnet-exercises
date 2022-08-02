@@ -8,7 +8,7 @@ if (args.Length <= 0)
 
 var str = args[0];
 
-if(Regex.IsMatch(str, "^[A-Ż][a-ż]*( ([A-Źa-ż]+|[0-9]+)[,;]?)*[?!.]$")) {
+if(Regex.IsMatch(str, "^[A-Ż][a-ż]*( ([A-Ża-ż]+|[0-9]+)[,;]?)*[?!.]$")) {
   Console.ForegroundColor = ConsoleColor.Green;
   Console.WriteLine("The given string is a valid sentence.");
 } else {
