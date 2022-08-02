@@ -6,12 +6,7 @@ if (args.Length <= 0)
   return;
 }
 
-var str = args[0];
+var valid = Regex.IsMatch(args[0], "^[A-Ż][a-ż]*( ([A-Ża-ż]+|[0-9]+)[,;]?)*[?!.]$");
 
-if(Regex.IsMatch(str, "^[A-Ż][a-ż]*( ([A-Ża-ż]+|[0-9]+)[,;]?)*[?!.]$")) {
-  Console.ForegroundColor = ConsoleColor.Green;
-  Console.WriteLine("The given string is a valid sentence.");
-} else {
-  Console.ForegroundColor = ConsoleColor.Red;
-  Console.WriteLine("The given string is not a valid sentence.");
-}
+Console.ForegroundColor = valid ? ConsoleColor.Green : ConsoleColor.Red;
+Console.WriteLine("The given string is " + (valid ? "" : "not ") + "a valid sentence.");
